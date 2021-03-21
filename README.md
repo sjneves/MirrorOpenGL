@@ -5,7 +5,17 @@ Mini jogo desenvolvido para compor parte da nota da disciplina de Computação G
 Discente:   Jean da Silva Neves
 RA:         11086415
 
-[Game](/public/helloworld.html)
+# Descrição
+
+O jogo consiste um uma missão para resgatar cientistas que ficaram presos em um planeta.
+
+Os controles são, as setas para cima para ligar os motores e as setas para o lago para girar a nave.
+
+Cuidado pois a motor da nave pode matar as pessoas.
+
+Quando elas ficam amarelas significa que iram se aproximar da nave assim que ela pousar.
+
+![Nave se aproximando de uma pessoa](/Screenshot.png)
 
 # ABCg
 
