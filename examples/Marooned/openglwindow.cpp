@@ -1,8 +1,10 @@
 #include "openglwindow.hpp"
 
+#include <fmt/core.h>
 #include <imgui.h>
 
 #include "abcg.hpp"
+#include "gameData.hpp"
 
 void OpenGLWindow::handleEvent(SDL_Event &event) {
   // Keyboard events
@@ -63,11 +65,15 @@ void OpenGLWindow::initializeGL() {
 
 void OpenGLWindow::restart() {
   m_gameData.m_state = State::Playing;
+  m_gameData.messageDelay.restart();
+  fmt::print(stdout, "restart\n");
 
   m_starLayers.initializeGL(m_starsProgram, 25);
   m_ship.initializeGL(m_objectsProgram);
-  m_mapa.initializeGL(m_objectsProgram, 3);
-//   m_bullets.initializeGL(m_objectsProgram);
+  m_mapa.initializeGL(m_objectsProgram, m_gameData);
+  m_pessoas.initializeGL(m_objectsProgram);
+  m_pessoas.addPessoa(m_mapa.nColunas, m_mapa.nLinhas, m_mapa.escala, m_mapa.d_mapa);
+  
 }
 
 void OpenGLWindow::update() {
@@ -83,12 +89,8 @@ void OpenGLWindow::update() {
   m_ship.update(m_gameData, deltaTime);
   m_starLayers.update(m_ship, deltaTime);
   m_mapa.update(m_ship, deltaTime);
-//   m_bullets.update(m_ship, m_gameData, deltaTime);
+  m_pessoas.update(m_ship, deltaTime, &m_gameData);
 
-  if (m_gameData.m_state == State::Playing) {
-    // checkCollisions();
-    // checkWinCondition();
-  }
 }
 
 void OpenGLWindow::paintGL() {
@@ -99,8 +101,9 @@ void OpenGLWindow::paintGL() {
 
   m_starLayers.paintGL();
   m_mapa.paintGL();
-//   m_bullets.paintGL();
   m_ship.paintGL(m_gameData);
+  m_pessoas.paintGL();
+
 }
 
 void OpenGLWindow::paintUI() {
@@ -118,10 +121,21 @@ void OpenGLWindow::paintUI() {
     ImGui::Begin(" ", nullptr, flags);
     ImGui::PushFont(m_font);
 
-    if (m_gameData.m_state == State::GameOver) {
-      ImGui::Text("Game Over!");
+    if (m_gameData.m_state == State::ExplosaoChao) {
+      ImGui::Text("Colidiu Rapido de Mais");
+    }else if (m_gameData.m_state == State::ExplosaoColisao) {
+      ImGui::Text("Colidiu Com Parede");
     } else if (m_gameData.m_state == State::Win) {
       ImGui::Text("*You Win!*");
+    }
+
+    if(m_gameData.m_acao == Acao::Morte && m_gameData.pessoaMorta.elapsed()<2.0f){
+      ImGui::Text("Voce Matou uma Pessoa");
+      m_gameData.pessoaMorta.restart();
+    }
+    if(m_gameData.m_acao == Acao::Resgate && m_gameData.pessoaResgatada.elapsed()<2.0f){
+      ImGui::Text("Voce Resgatou uma Pessoa");
+      m_gameData.pessoaResgatada.restart();
     }
 
     ImGui::PopFont();
@@ -141,64 +155,7 @@ void OpenGLWindow::terminateGL() {
   glDeleteProgram(m_objectsProgram);
 
   m_mapa.terminateGL();
-//   m_bullets.terminateGL();
   m_ship.terminateGL();
   m_starLayers.terminateGL();
+  m_pessoas.terminateGL();
 }
-
-// void OpenGLWindow::checkCollisions() {
-//   // Check collision between ship and asteroids
-//   for (auto &asteroid : m_asteroids.m_asteroids) {
-//     auto asteroidTranslation{asteroid.m_translation};
-//     auto distance{glm::distance(m_ship.m_translation, asteroidTranslation)};
-
-//     if (distance < m_ship.m_scale * 0.9f + asteroid.m_scale * 0.85f) {
-//       m_gameData.m_state = State::GameOver;
-//       m_restartWaitTimer.restart();
-//     }
-//   }
-
-  // Check collision between bullets and asteroids
-//   for (auto &bullet : m_bullets.m_bullets) {
-//     if (bullet.m_dead) continue;
-
-//     for (auto &asteroid : m_asteroids.m_asteroids) {
-//       for (auto i : {-2, 0, 2}) {
-//         for (auto j : {-2, 0, 2}) {
-//           auto asteroidTranslation{asteroid.m_translation + glm::vec2(i, j)};
-//           auto distance{
-//               glm::distance(bullet.m_translation, asteroidTranslation)};
-
-//           if (distance < m_bullets.m_scale + asteroid.m_scale * 0.85f) {
-//             asteroid.m_hit = true;
-//             bullet.m_dead = true;
-//           }
-//         }
-//       }
-//     }
-
-//     // Break asteroids marked as hit
-//     for (auto &asteroid : m_asteroids.m_asteroids) {
-//       if (asteroid.m_hit && asteroid.m_scale > 0.10f) {
-//         std::uniform_real_distribution<float> m_randomDist{-1.0f, 1.0f};
-//         std::generate_n(std::back_inserter(m_asteroids.m_asteroids), 3, [&]() {
-//           glm::vec2 offset{m_randomDist(m_randomEngine),
-//                            m_randomDist(m_randomEngine)};
-//           return m_asteroids.createAsteroid(
-//               asteroid.m_translation + offset * asteroid.m_scale * 0.5f,
-//               asteroid.m_scale * 0.5f);
-//         });
-//       }
-//     }
-
-//     m_asteroids.m_asteroids.remove_if(
-//         [](const Asteroids::Asteroid &a) { return a.m_hit; });
-//   }
-// }
-
-// void OpenGLWindow::checkWinCondition() {
-//   if (m_asteroids.m_asteroids.empty()) {
-//     m_gameData.m_state = State::Win;
-//     m_restartWaitTimer.restart();
-//   }
-// }

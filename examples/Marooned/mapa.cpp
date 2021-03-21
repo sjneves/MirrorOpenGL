@@ -5,19 +5,21 @@
 
 
 #include "mapa.hpp"
-
-#include "mapa.hpp"
+#include "gameData.hpp"
+#include "pessoas.hpp"
 
 #include <cppitertools/itertools.hpp>
 #include <glm/gtx/fast_trigonometry.hpp>
 
-void ClMapa::initializeGL(GLuint program, int quantity) {
+void ClMapa::initializeGL(GLuint program, GameData gamedate) {
     terminateGL();
-    int nColunas, nLinhas, i;
+    int i;
     int cont = 0;
     int pontoZeroX, pontoZeroY;
     int o = d_mapa.find("}{");
     int p = d_mapa.find("}\n");
+
+    m_gamedata = gamedate;
 
     // Start pseudo-random number generator
     auto seed{std::chrono::steady_clock::now().time_since_epoch().count()};
@@ -39,7 +41,6 @@ void ClMapa::initializeGL(GLuint program, int quantity) {
 
     fmt::print(stdout, "Numero de X -->{}\n", cont);
 
-    // Create asteroids
     m_bloco.clear();
     m_bloco.resize(cont);
 
@@ -65,7 +66,10 @@ void ClMapa::initializeGL(GLuint program, int quantity) {
         (float)pontoZeroY*escala, -(float)(nLinhas-pontoZeroY)*escala
     };
 
-    fmt::print(stdout, "{} - {} / {} - {} \n", limites.x, limites.y, limites.x, limites.y);
+    fmt::print(stdout, "Achando e criando pessoas!!\n{}\n", d_mapa.data());
+
+
+    fmt::print(stdout, "Limites tela - {} - {} / {} - {} \n", limites.x, limites.y, limites.x, limites.y);
 }
 
 void ClMapa::paintGL() {
@@ -95,19 +99,13 @@ void ClMapa::terminateGL() {
   }
 }
 
-void ClMapa::update(const Ship &ship, float deltaTime) {
-    for (auto &bloco : m_bloco) {
-        bloco.m_translation -= ship.m_velocity * deltaTime;
-        bloco.m_rotation = glm::wrapAngle(
-            bloco.m_rotation + bloco.m_angularVelocity * deltaTime);
-        bloco.m_translation += bloco.m_velocity * deltaTime;
+void ClMapa::update(Ship &ship, float deltaTime) {
+  
+  for (auto &bloco : m_bloco) {
+    ship.physics(deltaTime, checkCollisions(ship, bloco));
 
-        // Wrap-around
-        // if (mapa.m_translation.x < -1.0f) mapa.m_translation.x += 2.0f;
-        // if (mapa.m_translation.x > +1.0f) mapa.m_translation.x -= 2.0f;
-        // if (mapa.m_translation.y < -1.0f) mapa.m_translation.y += 2.0f;
-        // if (mapa.m_translation.y > +1.0f) mapa.m_translation.y -= 2.0f;
-    }
+    bloco.m_translation -= ship.m_velocity * deltaTime;
+  }
 }
 
 ClMapa::Bloco ClMapa::createBloco(glm::vec2 translation,
@@ -122,22 +120,18 @@ ClMapa::Bloco ClMapa::createBloco(glm::vec2 translation,
 
     bloco.m_color.a = 1.0f;
     bloco.m_rotation = 0.0f;
-    bloco.m_scale = scale;
+    bloco.m_scale = escala;
     bloco.m_translation = translation;
-
-  
-    // mapa.m_angularVelocity = m_randomDist(re);
-    bloco.m_angularVelocity = 0.0f;
 
     // Choose a random direction
     bloco.m_velocity = glm::vec2{0.0f, 0.0f};
 
 
     std::vector<glm::vec2> positions(0);  // Vetor para a posição
-    positions.emplace_back(-1, 1);
-    positions.emplace_back(1, 1);
-    positions.emplace_back(1, -1);
-    positions.emplace_back(-1, -1);
+    positions.emplace_back(-1.0f, 1.0f);
+    positions.emplace_back(1.0f, 1.0f);
+    positions.emplace_back(1.0f, -1.0f);
+    positions.emplace_back(-1.0f, -1.0f);
 
 
     // Generate VBO
@@ -165,4 +159,48 @@ ClMapa::Bloco ClMapa::createBloco(glm::vec2 translation,
     glBindVertexArray(0);
 
     return bloco;
+}
+
+std::list<ClMapa::Bloco> ClMapa::getListaBloco(){
+  return m_bloco;
+}
+
+int ClMapa::checkCollisions(Ship &ship, ClMapa::Bloco bloco) {
+  if(abs(bloco.m_translation.x) + abs(bloco.m_translation.y) > 3*ship.m_scale) return 0;
+  
+  float ang = ship.m_rotation;
+  float scale = ship.m_scale;
+  float bx, by, sx, sy, tx, ty;
+  
+  bx = bloco.m_translation.x;
+  by = bloco.m_translation.y;
+  sx = -sin(ang)*scale;
+  sy = -cos(ang)*scale;
+  
+  tx = sx-cos(ang)*scale;
+  ty = sy-sin(ang)*scale;
+  
+  if( (bx-escala*1.0f < tx) &&
+      (bx+escala*1.0f > tx) &&
+      (by-escala*1.0f < ty) &&
+      (by+escala*1.0f > ty)){
+    if(abs(ship.m_velocity.y)>0.2f){
+      fmt::print(stdout, "Explosao\n");
+    }
+    return 1; // Esquerda
+  }
+
+  tx = sx+cos(ang)*scale;
+  ty = sy+sin(ang)*scale;
+
+  if( (bx-escala*1.0f < tx) &&
+      (bx+escala*1.0f > tx) &&
+      (by-escala*1.0f < ty) &&
+      (by+escala*1.0f > ty)){
+    if(abs(ship.m_velocity.y)>0.2f){
+      fmt::print(stdout, "Explosao\n");
+    }
+    return 2; // Direita
+  }
+  return 0;
 }

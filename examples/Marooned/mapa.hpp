@@ -7,72 +7,79 @@
 #include "abcg.hpp"
 #include "gameData.hpp"
 #include "ship.hpp"
+#include "pessoas.hpp"
 
 class OpenGLWindow;
 
 class ClMapa {
- public:
-  void initializeGL(GLuint program, int quantity);
-  void paintGL();
-  void terminateGL();
+  public:
+    void initializeGL(GLuint program, GameData gamedate);
+    void paintGL();
+    void terminateGL();
 
-  void update(const Ship &ship, float deltaTime);
+    void update(Ship &ship, float deltaTime);
 
-  glm::vec2 limiteX{};
-  glm::vec2 limiteY{};
+    int nColunas, nLinhas;
 
- private:
-  friend OpenGLWindow;
+    glm::vec2 limiteX{};
+    glm::vec2 limiteY{};
 
-  std::string d_mapa{ "{100}{18}\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                X     X                                                                          |\n"
-                                  "|                   *                ###                                                          |\n"
-                                  "|                X     X             ###                                                          |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "|                                                                                                 |\n"
-                                  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"};
+    struct Bloco {
+      GLuint m_vao{};
+      GLuint m_vbo{};
 
-  GLuint m_program{};
-  GLint m_colorLoc{};
-  GLint m_rotationLoc{};
-  GLint m_translationLoc{};
-  GLint m_scaleLoc{};
+      glm::vec4 m_color{1};
+      bool m_hit{false};
+      int m_polygonSides = 4;
+      float m_rotation{};
+      float m_scale{};
+      glm::vec2 m_translation{glm::vec2(0)};
+      glm::vec2 m_velocity{glm::vec2(0)};
+    };
 
-  float escala = 0.05f;
+    int checkCollisions(Ship &ship, Bloco bloco);
+    std::list<Bloco> getListaBloco();
 
-  struct Bloco {
-    GLuint m_vao{};
-    GLuint m_vbo{};
+  private:
+    friend OpenGLWindow;
 
-    float m_angularVelocity{};
-    glm::vec4 m_color{1};
-    bool m_hit{false};
-    int m_polygonSides = 4;
-    float m_rotation{};
-    float m_scale{};
-    glm::vec2 m_translation{glm::vec2(0)};
-    glm::vec2 m_velocity{glm::vec2(0)};
-  };
+    std::string d_mapa{ "{100}{18}\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                       1                                         |\n"
+                                    "|                                               XX XX XXXX                                        |\n"
+                                    "|                                               X X X X                                           |\n"
+                                    "|                X     X                        X   X XXXX                                        |\n"
+                                    "|                   *                ###                                                          |\n"
+                                    "|                X     X             ###                                                          |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                                                                                                 |\n"
+                                    "|                3                       4                                                   3    |\n"
+                                    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n"};
 
-  std::list<Bloco> m_bloco;
+    GLuint m_program{};
+    GLint m_colorLoc{};
+    GLint m_rotationLoc{};
+    GLint m_translationLoc{};
+    GLint m_scaleLoc{};
 
-  std::default_random_engine m_randomEngine;
-  std::uniform_real_distribution<float> m_randomDist{-1.0f, 1.0f};
+    float escala = 0.05f;
 
-  ClMapa::Bloco createBloco(glm::vec2 translation = glm::vec2(0),
-                                     float scale = 0.05f);
+    GameData m_gamedata;
+
+    std::list<Bloco> m_bloco;
+
+    std::default_random_engine m_randomEngine;
+    std::uniform_real_distribution<float> m_randomDist{-1.0f, 1.0f};
+
+    ClMapa::Bloco createBloco(glm::vec2 translation = glm::vec2(0),
+                                        float scale = 0.05f);
 };
 
 #endif

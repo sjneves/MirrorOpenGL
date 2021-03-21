@@ -1,10 +1,21 @@
+#include <list>
+#include <fmt/core.h>
+#include <random>
+
 #include "ship.hpp"
+#include "mapa.hpp"
 
 #include <glm/gtx/fast_trigonometry.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 
 void Ship::initializeGL(GLuint program) {
   terminateGL();
+  auto seed{std::chrono::steady_clock::now().time_since_epoch().count()};
+  m_randomEngine.seed(seed);
+  auto &re{m_randomEngine};
+
+  std::uniform_real_distribution<float> randomG(0.15f, 0.75f);
+  grav = randomG(re);
 
   m_program = program;
   m_colorLoc = glGetUniformLocation(m_program, "color");
@@ -20,9 +31,9 @@ void Ship::initializeGL(GLuint program) {
   std::array<glm::vec2, 24> positions{
       // Ship body
       glm::vec2{-02.5f, +12.5f}, glm::vec2{-15.5f, +02.5f},
-      glm::vec2{-15.5f, -12.5f}, glm::vec2{-09.5f, -07.5f},
+      glm::vec2{-15.5f, -15.5f}, glm::vec2{-09.5f, -07.5f},
       glm::vec2{-03.5f, -12.5f}, glm::vec2{+03.5f, -12.5f},
-      glm::vec2{+09.5f, -07.5f}, glm::vec2{+15.5f, -12.5f},
+      glm::vec2{+09.5f, -07.5f}, glm::vec2{+15.5f, -15.5f},
       glm::vec2{+15.5f, +02.5f}, glm::vec2{+02.5f, +12.5f},
 
       // Cannon left
@@ -146,7 +157,16 @@ void Ship::terminateGL() {
 
 void Ship::update(const GameData &gameData, float deltaTime) {
   // Gravidade
-  m_velocity.y-=grav*deltaTime;
+  // physics(deltaTime);
+  m_velocity -= glm::vec2{0.0f, grav*deltaTime};
+  // fmt::print(stdout, "vel {}\n", m_velocity.y);
+
+  if(abs(m_velocity.y)>0.2f){
+    // fmt::print(stdout, "parado\n");
+    m_color = glm::vec4{1.0f, 0.0f, 0.0f, 1.0f};
+  }else{
+    m_color = glm::vec4{1.0f, 1.0f, 1.0f, 1.0f};
+  }
 
   // Rotate
   if (gameData.m_input[static_cast<size_t>(Input::Left)])
@@ -161,4 +181,32 @@ void Ship::update(const GameData &gameData, float deltaTime) {
     glm::vec2 forward = glm::rotate(glm::vec2{0.0f, 1.0f}, m_rotation);
     m_velocity += forward * deltaTime;
   }
+  // if (gameData.m_input[static_cast<size_t>(Input::Down)] &&
+  //     gameData.m_state == State::Playing) {
+  //   // Thrust in the forward vector
+  //   glm::vec2 forward = glm::rotate(glm::vec2{0.0f, 1.0f}, m_rotation);
+  //   m_velocity -= forward * deltaTime;
+  // }
+
+}
+
+void Ship::physics(float deltaTime, int lado){
+  if(m_colisao.elapsed() < 0.10f){
+    m_velocity += glm::vec2{0.0f, 0.005f}  * deltaTime;
+    return;
+  }
+  if(lado==1){
+    // if nao colisao esquerdo acelera esquerto baixo 1/2 gravidade
+    m_velocity *= glm::vec2{1.0f, -1.5f} * deltaTime + glm::vec2{0.0f, grav};
+    m_colisao.restart();
+  }else if(lado==2){
+    // if nao colisao direito acelera direito baixo 1/2 gravidade
+    m_velocity *= glm::vec2{1.0f, -1.5f} * deltaTime + glm::vec2{0.0f, grav};
+    m_colisao.restart();
+  }
+
+  // if nenhuma cosisao acelera gravidade
+  
+
+  // A ideia é, no momento da colisão acelerar a nave para cima com metade da velocidade q ela estava no momento da colisão
 }
