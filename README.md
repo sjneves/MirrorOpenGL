@@ -7,6 +7,8 @@ RA:         11086415
 
 # Descrição
 
+No webAssembly não está aparecendo os blocos que deveriam formar o chão.
+
 O jogo consiste um uma missão para resgatar cientistas que ficaram presos em um planeta.
 
 Os controles são, as setas para cima para ligar os motores e as setas para o lado para girar a nave.
