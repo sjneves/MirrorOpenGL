@@ -14,7 +14,7 @@ void Ship::initializeGL(GLuint program) {
   m_randomEngine.seed(seed);
   auto &re{m_randomEngine};
 
-  std::uniform_real_distribution<float> randomG(0.15f, 0.75f);
+  std::uniform_real_distribution<float> randomG(0.15f, 0.5f);
   grav = randomG(re);
 
   m_program = program;

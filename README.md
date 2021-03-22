@@ -9,7 +9,7 @@ RA:         11086415
 
 O jogo consiste um uma missão para resgatar cientistas que ficaram presos em um planeta.
 
-Os controles são, as setas para cima para ligar os motores e as setas para o lago para girar a nave.
+Os controles são, as setas para cima para ligar os motores e as setas para o lado para girar a nave.
 
 Cuidado pois a motor da nave pode matar as pessoas.
 
