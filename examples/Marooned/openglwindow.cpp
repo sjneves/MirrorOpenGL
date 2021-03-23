@@ -88,8 +88,8 @@ void OpenGLWindow::update() {
 
   m_ship.update(m_gameData, deltaTime);
   m_starLayers.update(m_ship, deltaTime);
-  m_mapa.update(m_ship, deltaTime);
   m_pessoas.update(m_ship, deltaTime, &m_gameData);
+  m_mapa.update(m_ship, deltaTime);
 
 }
 
