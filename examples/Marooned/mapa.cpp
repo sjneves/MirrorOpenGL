@@ -84,7 +84,7 @@ void ClMapa::paintGL() {
 
     glUniform2f(m_translationLoc, bloco.m_translation.x, bloco.m_translation.y);
 
-    glDrawArrays(GL_TRIANGLE_FAN, 0, bloco.m_polygonSides + 2);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
     glBindVertexArray(0);
   }
