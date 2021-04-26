@@ -8,15 +8,14 @@ int main(int argc, char **argv) {
     abcg::Application app(argc, argv);
 
     auto window{std::make_unique<OpenGLWindow>()};
-    window->setOpenGLSettings({.samples = 4, .vsync = true});
+    window->setOpenGLSettings({.samples = 0, .vsync = true});
     window->setWindowSettings(
-        {.width = 800, .height = 800, .showFPS = false, .showFullscreenButton = false, .title = "Mirror in OpenGL"});
+        {.width = 900, .height = 600, .showFPS = false, .title = "Mirror in OpenGL"});
 
     app.run(window);
   } catch (abcg::Exception &exception) {
     fmt::print(stderr, "{}\n", exception.what());
     return -1;
   }
-  fmt::print(stdout, "\nFIM!!\n");
   return 0;
 }

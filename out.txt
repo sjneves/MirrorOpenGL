@@ -1,0 +1,54 @@
+-- The C compiler identification is GNU 10.2.0
+-- The CXX compiler identification is GNU 10.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found OpenGL: /usr/lib/libOpenGL.so   
+-- Found GLEW: /usr/include (found version "2.2.0") 
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE  
+-- Found SDL2: /usr/lib/libSDL2main.a;/usr/lib/libSDL2.so;-lpthread  
+-- Found SDL2_image: /usr/lib/libSDL2_image.so  
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /mnt/arquivos/Users/jean_/Documents/Facul/CG/Mirror/build
+[ 18%] Building CXX object abcg/external/fmt/CMakeFiles/fmt.dir/format.cc.o
+[ 18%] Building CXX object abcg/external/imgui/CMakeFiles/imgui.dir/imgui.cpp.o
+[ 22%] Building CXX object abcg/external/imgui/CMakeFiles/imgui.dir/imgui_demo.cpp.o
+[ 22%] Building CXX object abcg/external/imgui/CMakeFiles/imgui.dir/imgui_draw.cpp.o
+[ 27%] Building CXX object abcg/external/imgui/CMakeFiles/imgui.dir/imgui_impl_opengl3.cpp.o
+[ 31%] Building CXX object abcg/external/imgui/CMakeFiles/imgui.dir/imgui_widgets.cpp.o
+[ 31%] Building CXX object abcg/external/imgui/CMakeFiles/imgui.dir/imgui_impl_sdl.cpp.o
+[ 36%] Linking CXX static library libimgui.a
+[ 36%] Built target imgui
+[ 40%] Linking CXX static library libfmt.a
+[ 40%] Built target fmt
+[ 59%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_exception.cpp.o
+[ 59%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_elapsedtimer.cpp.o
+[ 59%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_application.cpp.o
+[ 59%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_image.cpp.o
+[ 68%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_trackball.cpp.o
+[ 68%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_openglwindow.cpp.o
+[ 72%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_string.cpp.o
+[ 77%] Building CXX object abcg/CMakeFiles/abcg.dir/abcg_openglfunctions.cpp.o
+[ 81%] Linking CXX static library libabcg.a
+[ 81%] Built target abcg
+[ 95%] Building CXX object examples/Mirror/CMakeFiles/Mirror.dir/camera.cpp.o
+[ 95%] Building CXX object examples/Mirror/CMakeFiles/Mirror.dir/main.cpp.o
+[ 95%] Building CXX object examples/Mirror/CMakeFiles/Mirror.dir/openglwindow.cpp.o
+[100%] Linking CXX executable ../../bin/Mirror
+[100%] Built target Mirror

@@ -1,270 +1,261 @@
 #include "openglwindow.hpp"
 
-#include <fmt/core.h>
 #include <imgui.h>
-#include <tiny_obj_loader.h>
-// #include <math.h>
+#include <fmt/core.h>
 
 #include <cppitertools/itertools.hpp>
-#include <glm/gtx/fast_trigonometry.hpp>
-#include <glm/gtx/hash.hpp>
-#include <unordered_map>
+#include <glm/gtc/matrix_inverse.hpp>
 
-// Custom specialization of std::hash injected in namespace std
-namespace std {
-  template <>
-  struct hash<Vertex> {
-    size_t operator()(Vertex const& vertex) const noexcept {
-      std::size_t h1{std::hash<glm::vec3>()(vertex.position)};
-      return h1;
-    }
-  };
-}  // namespace std
+#include "imfilebrowser.h"
 
-void OpenGLWindow::handleEvent(SDL_Event& ev) {
-  if (ev.type == SDL_KEYDOWN) {
-    if (ev.key.keysym.sym == SDLK_UP || ev.key.keysym.sym == SDLK_w)
-      m_dollySpeed = 1.0f;
-    if (ev.key.keysym.sym == SDLK_DOWN || ev.key.keysym.sym == SDLK_s)
-      m_dollySpeed = -1.0f;
-    if (ev.key.keysym.sym == SDLK_LEFT || ev.key.keysym.sym == SDLK_a)
-      m_panSpeed = -1.0f;
-    if (ev.key.keysym.sym == SDLK_RIGHT || ev.key.keysym.sym == SDLK_d)
-      m_panSpeed = 1.0f;
-    if (ev.key.keysym.sym == SDLK_q) m_truckSpeed = -1.0f;
-    if (ev.key.keysym.sym == SDLK_e) m_truckSpeed = 1.0f;
+#define PI 3.14159265358979323846
+
+void OpenGLWindow::handleEvent(SDL_Event& event) {
+  if (event.type == SDL_KEYDOWN) {
+    if (event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w)
+      m_camera.setDollySpeed(2.0f);
+    if (event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s)
+      m_camera.setDollySpeed(-2.0f);
+    if (event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
+      m_camera.setPanSpeed(-1.0f);
+    if (event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d)
+      m_camera.setPanSpeed(1.0f);
+    if (event.key.keysym.sym == SDLK_q) m_camera.setTruckSpeed(-1.0f);
+    if (event.key.keysym.sym == SDLK_e) m_camera.setTruckSpeed(1.0f);
   }
-  if (ev.type == SDL_KEYUP) {
-    if ((ev.key.keysym.sym == SDLK_UP || ev.key.keysym.sym == SDLK_w) &&
-        m_dollySpeed > 0)
-      m_dollySpeed = 0.0f;
-    if ((ev.key.keysym.sym == SDLK_DOWN || ev.key.keysym.sym == SDLK_s) &&
-        m_dollySpeed < 0)
-      m_dollySpeed = 0.0f;
-    if ((ev.key.keysym.sym == SDLK_LEFT || ev.key.keysym.sym == SDLK_a) &&
-        m_panSpeed < 0)
-      m_panSpeed = 0.0f;
-    if ((ev.key.keysym.sym == SDLK_RIGHT || ev.key.keysym.sym == SDLK_d) &&
-        m_panSpeed > 0)
-      m_panSpeed = 0.0f;
-    if (ev.key.keysym.sym == SDLK_q && m_truckSpeed < 0) m_truckSpeed = 0.0f;
-    if (ev.key.keysym.sym == SDLK_e && m_truckSpeed > 0) m_truckSpeed = 0.0f;
+  if (event.type == SDL_KEYUP) {
+    if ((event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w) &&
+        m_camera.getDollySpeed() > 0)
+      m_camera.setDollySpeed(0.0f);
+    if ((event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s) &&
+        m_camera.getDollySpeed() < 0)
+      m_camera.setDollySpeed(0.0f);
+    if ((event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a) &&
+        m_camera.getPanSpeed() < 0)
+      m_camera.setPanSpeed(0.0f);
+    if ((event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d) &&
+        m_camera.getPanSpeed() > 0)
+      m_camera.setPanSpeed(0.0f);
+    if (event.key.keysym.sym == SDLK_q && m_camera.getTruckSpeed() < 0) m_camera.setTruckSpeed(0.0f);
+    if (event.key.keysym.sym == SDLK_e && m_camera.getTruckSpeed() > 0) m_camera.setTruckSpeed(0.0f);
   }
 }
 
 void OpenGLWindow::initializeGL() {
   glClearColor(0, 0, 0, 1);
-
-  // Enable depth buffering
   glEnable(GL_DEPTH_TEST);
 
-  // Create program
-  m_program = createProgramFromFile(getAssetsPath() + "lookat.vert",
-                                    getAssetsPath() + "lookat.frag");
+  // Create programs
+  for (const auto& name : m_shaderNames) {
+    auto path{getAssetsPath() + "shaders/" + name};
+    auto program{createProgramFromFile(path + ".vert", path + ".frag")};
+    m_programs.push_back(program);
+  }
 
-  // Load model
-  loadModelFromFile(getAssetsPath() + "bunny.obj");
+  // Load default model
+  loadModel(getAssetsPath() + "bunny.obj");
+
+  // Load cubemap
+  m_model.loadCubeTexture(getAssetsPath() + "maps/cube/");
+
+  // Initial trackball spin
+  m_trackBallModel.setAxis(glm::normalize(glm::vec3(1, 1, 1)));
+  m_trackBallModel.setVelocity(0.0f);
+
+  m_viewportWidth = getWindowSettings().width;
+  m_viewportHeight = getWindowSettings().height;
+  m_camera.computeProjectionMatrix(m_viewportWidth, m_viewportHeight);
+
+  m_model.setMirrorPz(mirrorPz);
+
+  initializeSkybox();
+}
+
+void OpenGLWindow::initializeSkybox() {
+  // Create skybox program
+  auto path{getAssetsPath() + "shaders/" + m_skyShaderName};
+  m_skyProgram = createProgramFromFile(path + ".vert", path + ".frag");
 
   // Generate VBO
-  glGenBuffers(1, &m_VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(m_vertices[0]) * m_vertices.size(),
-                m_vertices.data(), GL_STATIC_DRAW);
+  glGenBuffers(1, &m_skyVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_skyVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(m_skyPositions), m_skyPositions.data(),
+               GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  // Generate EBO
-  glGenBuffers(1, &m_EBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(m_indices[0]) * m_indices.size(),
-                m_indices.data(), GL_STATIC_DRAW);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  // Get location of attributes in the program
+  GLint positionAttribute{glGetAttribLocation(m_skyProgram, "inPosition")};
 
   // Create VAO
-  glGenVertexArrays(1, &m_VAO);
+  glGenVertexArrays(1, &m_skyVAO);
 
   // Bind vertex attributes to current VAO
-  glBindVertexArray(m_VAO);
+  glBindVertexArray(m_skyVAO);
 
-  glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-  GLint positionAttribute{glGetAttribLocation(m_program, "inPosition")};
+  glBindBuffer(GL_ARRAY_BUFFER, m_skyVBO);
   glEnableVertexAttribArray(positionAttribute);
-  glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, GL_FALSE,
-                        sizeof(Vertex), nullptr);
+  glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
 
   // End of binding to current VAO
   glBindVertexArray(0);
-
-  resizeGL(getWindowSettings().width, getWindowSettings().height);
 }
 
-void OpenGLWindow::loadModelFromFile(std::string_view path) {
-  tinyobj::ObjReaderConfig readerConfig;
-  readerConfig.mtl_search_path =
-      getAssetsPath() + "mtl/";  // Path to material files
+void OpenGLWindow::loadModel(std::string_view path) {
+  m_model.loadDiffuseTexture(getAssetsPath() + "maps/bs.png");
+  m_model.loadNormalTexture(getAssetsPath() + "maps/bs_normal.png");
+  m_model.loadFromFile(path);
+  m_model.setupVAO(m_programs.at(m_currentProgramIndex));
+  m_trianglesToDraw = m_model.getNumTriangles();
 
-  tinyobj::ObjReader reader;
-
-  if (!reader.ParseFromFile(path.data(), readerConfig)) {
-    if (!reader.Error().empty()) {
-      throw abcg::Exception{abcg::Exception::Runtime(
-          fmt::format("Failed to load model {} ({})", path, reader.Error()))};
-    }
-    throw abcg::Exception{
-        abcg::Exception::Runtime(fmt::format("Failed to load model {}", path))};
-  }
-
-  if (!reader.Warning().empty()) {
-    fmt::print("Warning: {}\n", reader.Warning());
-  }
-
-  const auto& attrib{reader.GetAttrib()};
-  const auto& shapes{reader.GetShapes()};
-
-  m_vertices.clear();
-  m_indices.clear();
-
-  // A key:value map with key=Vertex and value=index
-  std::unordered_map<Vertex, GLuint> hash{};
-
-  // Loop over shapes
-  for (const auto& shape : shapes) {
-    // Loop over faces(polygon)
-    size_t indexOffset{0};
-    for (const auto faceNumber :
-         iter::range(shape.mesh.num_face_vertices.size())) {
-      // Number of vertices composing face f
-      std::size_t numFaceVertices{shape.mesh.num_face_vertices[faceNumber]};
-      // Loop over vertices in the face
-      std::size_t startIndex{};
-      for (const auto vertexNumber : iter::range(numFaceVertices)) {
-        // Access to vertex
-        tinyobj::index_t index{shape.mesh.indices[indexOffset + vertexNumber]};
-
-        // Vertex coordinates
-        startIndex = 3 * index.vertex_index;
-        tinyobj::real_t vx = attrib.vertices[startIndex + 0];
-        tinyobj::real_t vy = attrib.vertices[startIndex + 1];
-        tinyobj::real_t vz = attrib.vertices[startIndex + 2];
-
-        Vertex vertex{};
-        vertex.position = {vx, vy, vz};
-
-        // If uniqueVertices doesn't contain this vertex
-        if (hash.count(vertex) == 0) {
-          // Add this index (size of m_vertices)
-          hash[vertex] = m_vertices.size();
-          // Add this vertex
-          m_vertices.push_back(vertex);
-        }
-
-        m_indices.push_back(hash[vertex]);
-      }
-      indexOffset += numFaceVertices;
-    }
-  }
+  // Use material properties from the loaded model
+  m_Ka = m_model.getKa();
+  m_Kd = m_model.getKd();
+  m_Ks = m_model.getKs();
+  m_shininess = m_model.getShininess();
 }
 
 void OpenGLWindow::paintGL() {
   update();
+  glDisable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
+  
 
-  // Clear color buffer and depth buffer
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
   glViewport(0, 0, m_viewportWidth, m_viewportHeight);
 
-  glUseProgram(m_program);
-  glBindVertexArray(m_VAO);
+  // Use currently selected program
+  const auto program{m_programs.at(m_currentProgramIndex)};
+  glUseProgram(program);
+  fmt::print(stdout, "{}\r", m_shaderNames[m_currentProgramIndex]);
 
-  // Get location of uniform variables (could be precomputed)
-  GLint viewMatrixLoc{glGetUniformLocation(m_program, "viewMatrix")};
-  GLint projMatrixLoc{glGetUniformLocation(m_program, "projMatrix")};
-  GLint modelMatrixLoc{glGetUniformLocation(m_program, "modelMatrix")};
-  GLint colorLoc{glGetUniformLocation(m_program, "color")};
+  // Get location of uniform variables
+  GLint viewMatrixLoc{glGetUniformLocation(program, "viewMatrix")};
+  GLint projMatrixLoc{glGetUniformLocation(program, "projMatrix")};
+  GLint modelMatrixLoc{glGetUniformLocation(program, "modelMatrix")};
+  GLint normalMatrixLoc{glGetUniformLocation(program, "normalMatrix")};
+  GLint lightDirLoc{glGetUniformLocation(program, "lightDirWorldSpace")};
+  GLint shininessLoc{glGetUniformLocation(program, "shininess")};
+  GLint colorLoc{glGetUniformLocation(program, "inColor")};
+  GLint IaLoc{glGetUniformLocation(program, "Ia")};
+  GLint IdLoc{glGetUniformLocation(program, "Id")};
+  GLint IsLoc{glGetUniformLocation(program, "Is")};
+  GLint KaLoc{glGetUniformLocation(program, "Ka")};
+  GLint KdLoc{glGetUniformLocation(program, "Kd")};
+  GLint KsLoc{glGetUniformLocation(program, "Ks")};
+  GLint diffuseTexLoc{glGetUniformLocation(program, "diffuseTex")};
+  GLint normalTexLoc{glGetUniformLocation(program, "normalTex")};
+  GLint cubeTexLoc{glGetUniformLocation(program, "cubeTex")};
+  GLint mappingModeLoc{glGetUniformLocation(program, "mappingMode")};
+  GLint texMatrixLoc{glGetUniformLocation(program, "texMatrix")};
 
-  // Set uniform variables for viewMatrix and projMatrix
-  // These matrices are used for every scene object
-  glUniformMatrix4fv(viewMatrixLoc, 1, GL_FALSE, &m_camera.m_viewMatrix[0][0]);
-  glUniformMatrix4fv(projMatrixLoc, 1, GL_FALSE, &m_camera.m_projMatrix[0][0]);
+  m_viewMatrix = m_camera.getViewMatrix();
+  m_projMatrix = m_camera.getProjMatrix();
 
-  // Draw white bunny
-  glm::mat4 model{1.0f};
-  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 0.0f));
-  model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0, 1, 0));
-  model = glm::scale(model, glm::vec3(0.5f));
+  // Set uniform variables used by every scene object
+  glUniformMatrix4fv(viewMatrixLoc, 1, GL_FALSE, &m_viewMatrix[0][0]);
+  glUniformMatrix4fv(projMatrixLoc, 1, GL_FALSE, &m_projMatrix[0][0]);
+  glUniform1i(diffuseTexLoc, 0);
+  glUniform1i(normalTexLoc, 1);
+  glUniform1i(cubeTexLoc, 2);
+  glUniform1i(mappingModeLoc, m_mappingMode);
 
-  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, &model[0][0]);
-  glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
-  glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  glm::mat3 texMatrix{m_trackBallLight.getRotation()};
+  glUniformMatrix3fv(texMatrixLoc, 1, GL_TRUE, &texMatrix[0][0]);
 
-  // Draw yellow bunny
-  model = glm::mat4(1.0);
-  model = glm::translate(model, glm::vec3(0.0f, 0.0f, -1.0f));
-  model = glm::scale(model, glm::vec3(0.5f));
+  auto lightDirRotated{m_trackBallLight.getRotation() * m_lightDir};
+  glUniform4fv(lightDirLoc, 1, &lightDirRotated.x);
+  glUniform4fv(IaLoc, 1, &m_Ia.x);
+  glUniform4fv(IdLoc, 1, &m_Id.x);
+  glUniform4fv(IsLoc, 1, &m_Is.x);
 
-  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, &model[0][0]);
-  glUniform4f(colorLoc, 1.0f, 0.8f, 0.0f, 1.0f);
-  glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  // Set uniform variables of the current object
+  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, &m_modelMatrix[0][0]);
 
-  // Draw blue bunny
-  model = glm::mat4(1.0);
-  model = glm::translate(model, glm::vec3(1.0f, 0.0f, 0.0f));
-  model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0, 1, 0));
-  model = glm::scale(model, glm::vec3(0.5f));
+  auto modelViewMatrix{glm::mat3(m_viewMatrix * m_modelMatrix)};
+  glm::mat3 normalMatrix{glm::inverseTranspose(modelViewMatrix)};
+  glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, &normalMatrix[0][0]);
 
-  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, &model[0][0]);
-  glUniform4f(colorLoc, 0.0f, 0.8f, 1.0f, 1.0f);
-  glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  glUniform1f(shininessLoc, m_shininess);
+  glUniform4fv(KaLoc, 1, &m_Ka.x);
+  glUniform4fv(KdLoc, 1, &m_Kd.x);
+  glUniform4fv(KsLoc, 1, &m_Ks.x);
+  // m_model.render(m_trianglesToDraw);
+  m_model.render(glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 1.0f, modelMatrixLoc, m_modelMatrix, colorLoc);
+  m_model.render(glm::vec3(-2.0f, 0.0f, 0.0f), PI/2, 1.0f, modelMatrixLoc, m_modelMatrix, colorLoc);
+  m_model.render(glm::vec3(2.0f, 0.0f, 0.0f), 3*PI/2, 1.0f, modelMatrixLoc, m_modelMatrix, colorLoc);
 
-  // Draw red bunny
-  model = glm::mat4(1.0);
-  model = glm::scale(model, glm::vec3(0.1f));
+  m_model.render(glm::vec3(m_camera.getPosition().x, 0.0f, 2*mirrorPz-m_camera.getPosition().z), 
+              m_camera.getAng() - 0.55f, 1.0f, modelMatrixLoc, m_modelMatrix, colorLoc);
 
-  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, &model[0][0]);
-  glUniform4f(colorLoc, 1.0f, 0.25f, 0.25f, 1.0f);
-  glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  renderSkybox();
+}
 
-  // Reflect camera bunny
-  // fmt::print(stdout, "Camera ----> x:{} y:{} z:{}\r", m_camera.getPosition().x, m_camera.getPosition().y, m_camera.getPosition().z);
-  fmt::print(stdout, "\033[FPosCamera ----> x:{} y:{} z:{}\nLookAr-----> x:{}, y:{}, z:{}", m_camera.getPosition().x, m_camera.getPosition().y, m_camera.getPosition().z, m_camera.getM_at().x, m_camera.getM_at().y, m_camera.getM_at().z);
-  model = glm::mat4(1.0);
-  model = glm::translate(model, glm::vec3(m_camera.getPosition().x, 0.0f, posZmirror-(m_camera.getPosition().z-posZmirror)));
-  model = glm::rotate(model, m_camera.getAng(), glm::vec3(0.0f, 1.0f, 0.0f));
-  model = glm::scale(model, glm::vec3(0.5f));
-  // m_camera.getAng();
-  // atan(m_camera.getM_at().x/m_camera.getM_at().z)
+void OpenGLWindow::renderSkybox() {
+  glUseProgram(m_skyProgram);
 
-  glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, &model[0][0]);
-  glUniform4f(colorLoc, 1.0f, 0.8f, 0.5f, 0.7f);
-  glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, nullptr);
+  // Get location of uniform variables
+  GLint viewMatrixLoc{glGetUniformLocation(m_skyProgram, "viewMatrix")};
+  GLint projMatrixLoc{glGetUniformLocation(m_skyProgram, "projMatrix")};
+  GLint skyTexLoc{glGetUniformLocation(m_skyProgram, "skyTex")};
+
+  // Set uniform variables
+  auto viewMatrix{m_trackBallLight.getRotation()};
+  glUniformMatrix4fv(viewMatrixLoc, 1, GL_FALSE, &viewMatrix[0][0]);
+  glUniformMatrix4fv(projMatrixLoc, 1, GL_FALSE, &m_projMatrix[0][0]);
+  glUniform1i(skyTexLoc, 0);
+
+  glBindVertexArray(m_skyVAO);
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, m_model.getCubeTexture());
+
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CW);
+  glDepthFunc(GL_LEQUAL);
+  glDrawArrays(GL_TRIANGLES, 0, m_skyPositions.size());
+  glDepthFunc(GL_LESS);
 
   glBindVertexArray(0);
   glUseProgram(0);
 }
 
-void OpenGLWindow::paintUI() { abcg::OpenGLWindow::paintUI(); }
+void OpenGLWindow::paintUI() {
+  abcg::OpenGLWindow::paintUI();
+}
 
 void OpenGLWindow::resizeGL(int width, int height) {
   m_viewportWidth = width;
   m_viewportHeight = height;
 
-  m_camera.computeProjectionMatrix(width, height);
+  m_trackBallModel.resizeViewport(width, height);
+  m_trackBallLight.resizeViewport(width, height);
 }
 
 void OpenGLWindow::terminateGL() {
-  glDeleteProgram(m_program);
-  glDeleteBuffers(1, &m_EBO);
-  glDeleteBuffers(1, &m_VBO);
-  glDeleteVertexArrays(1, &m_VAO);
+  for (const auto& program : m_programs) {
+    glDeleteProgram(program);
+  }
+  terminateSkybox();
+}
+
+void OpenGLWindow::terminateSkybox() {
+  glDeleteProgram(m_skyProgram);
+  glDeleteBuffers(1, &m_skyVBO);
+  glDeleteVertexArrays(1, &m_skyVAO);
 }
 
 void OpenGLWindow::update() {
   float deltaTime{static_cast<float>(getDeltaTime())};
 
   // Update LookAt camera
-  m_camera.dolly(m_dollySpeed * deltaTime);
-  m_camera.truck(m_truckSpeed * deltaTime);
-  m_camera.pan(m_panSpeed * deltaTime);
+  m_camera.dolly(deltaTime);
+  m_camera.truck(deltaTime);
+  m_camera.pan(deltaTime);
+
+  // m_modelMatrix = m_trackBallModel.getRotation();
+
+  m_eyePosition = glm::vec3(0.0f, 0.0f, 2.0f + m_zoom);
+  m_viewMatrix = glm::lookAt(m_eyePosition, glm::vec3(0.0f, 0.0f, 0.0f),
+                             glm::vec3(0.0f, 1.0f, 0.0f));
 }
